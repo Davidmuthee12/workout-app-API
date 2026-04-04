@@ -1,0 +1,13 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries:
+      - "./internals/adapters/postgres/sqlc/queries.sql"
+    schema: "./internals/adapters/postgres/migrations"
+    gen:
+      go:
+        package: "repo"
+        out: "./internals/adapters/postgres/sqlc"
+        sql_package: "pgx/v5"
+        emit_json_tags: true
+        emit_interface: true # generate Querier interface
