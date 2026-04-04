@@ -1,12 +1,17 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
+	repo "github.com/Davidmuthee12/kicker/internals/adapters/postgres/sqlc"
+	"github.com/Davidmuthee12/kicker/internals/workouts"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -18,12 +23,17 @@ type application struct {
 type config struct {
 	addr string
 	db   dbConfig
+	jwtSecret string
 }
 
 type dbConfig struct {
 	dsn string
 }
 
+type Claims struct {
+	UserID string `json:"user_id"`
+	jwt.RegisteredClaims
+}
 // Mount
 
 func (app *application) mount() http.Handler {
@@ -44,6 +54,30 @@ func (app *application) mount() http.Handler {
 		w.Write([]byte("hi"))
 	})
 
+	// PUBLIC ROUTES
+	r.Post("/auth/register", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "not implemented", http.StatusNotImplemented)
+	})
+	r.Post("/auth/login", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "not implemented", http.StatusNotImplemented)
+	})
+
+	// PROTECTED ROUTES
+	workoutServices := workouts.NewService(repo.New(app.db))
+	workoutHandler := workouts.NewHandler(workoutServices)
+	r.Route("/api", func(r chi.Router) {
+		r.Use(app.authMiddleware)
+
+		r.Get("/workouts", workoutHandler.ListWorkouts)
+		r.Post("/workouts", workoutHandler.AddWorkout)
+		r.Get("/workouts/{id}", func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "not implemented", http.StatusNotImplemented)
+		})
+		r.Post("/workouts/{id}/exercises", func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "not implemented", http.StatusNotImplemented)
+		})
+	})
+
 
 
 	return r
@@ -61,4 +95,39 @@ func (app *application) run(h http.Handler) error {
 
 	log.Printf("Server is running at address %s", app.config.addr)
 	return srv.ListenAndServe()
+}
+
+// AUTH MIDDLEWARE
+func (app *application) authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+
+		if authHeader == "" {
+			http.Error(w, "missing authorization header", http.StatusUnauthorized)
+			return
+		}
+
+		parts := strings.Split(authHeader, " ")
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			http.Error(w, "invalid authorization header", http.StatusUnauthorized)
+			return
+		}
+
+		tokenString := parts[1]
+
+		claims := &Claims{}
+
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			return []byte(app.config.jwtSecret), nil
+		})
+
+		if err != nil || !token.Valid {
+			http.Error(w, "invalid token", http.StatusUnauthorized)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), "userID", claims.UserID)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
