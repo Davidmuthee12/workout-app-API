@@ -11,13 +11,13 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func main () {
+func main() {
 	godotenv.Load()
 	ctx := context.Background()
 
-
 	cfg := config{
-		addr: ":" + env.GetString("API_PORT", "8080"),
+		addr:      ":" + env.GetString("API_PORT", "8080"),
+		jwtSecret: env.GetString("JWT_SECRET", "dev-secret-change-me"),
 		db: dbConfig{
 			dsn: "postgres://" + env.GetString("DB_USER", "postgres") + ":" + env.GetString("DB_PASSWORD", "postgres") + "@" + env.GetString("DB_HOST", "localhost") + ":" + env.GetString("DB_PORT", "5432") + "/" + env.GetString("DB_NAME", "kicker_db") + "?sslmode=disable",
 		},
@@ -33,11 +33,11 @@ func main () {
 	}
 	defer conn.Close(ctx)
 
-	logger.Info("Connected to database %s", cfg.db.dsn)
+	logger.Info("Connected to database", "dsn", cfg.db.dsn)
 
 	api := application{
 		config: cfg,
-		db: conn,
+		db:     conn,
 	}
 
 	if err := api.run(api.mount()); err != nil {

@@ -8,6 +8,8 @@ import (
 	"time"
 
 	repo "github.com/Davidmuthee12/kicker/internals/adapters/postgres/sqlc"
+	"github.com/Davidmuthee12/kicker/internals/auth/login"
+	"github.com/Davidmuthee12/kicker/internals/auth/register"
 	"github.com/Davidmuthee12/kicker/internals/workouts"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
@@ -17,12 +19,12 @@ import (
 
 type application struct {
 	config config
-	db *pgx.Conn
+	db     *pgx.Conn
 }
 
 type config struct {
-	addr string
-	db   dbConfig
+	addr      string
+	db        dbConfig
 	jwtSecret string
 }
 
@@ -34,10 +36,12 @@ type Claims struct {
 	UserID string `json:"user_id"`
 	jwt.RegisteredClaims
 }
+
 // Mount
 
 func (app *application) mount() http.Handler {
 	r := chi.NewRouter()
+	queries := repo.New(app.db)
 
 	// A good base middleware stack
 	r.Use(middleware.RequestID) // important for rate limiting
@@ -55,15 +59,15 @@ func (app *application) mount() http.Handler {
 	})
 
 	// PUBLIC ROUTES
-	r.Post("/auth/register", func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "not implemented", http.StatusNotImplemented)
-	})
-	r.Post("/auth/login", func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "not implemented", http.StatusNotImplemented)
-	})
+	registerService := register.NewService(app.db)
+	registerHandler := register.NewHandler(registerService)
+	loginService := login.NewService(app.db, app.config.jwtSecret)
+	loginHandler := login.NewHandler(loginService)
+	r.Post("/auth/register", registerHandler.Register)
+	r.Post("/auth/login", loginHandler.Login)
 
 	// PROTECTED ROUTES
-	workoutServices := workouts.NewService(repo.New(app.db))
+	workoutServices := workouts.NewService(queries)
 	workoutHandler := workouts.NewHandler(workoutServices)
 	r.Route("/api", func(r chi.Router) {
 		r.Use(app.authMiddleware)
@@ -78,19 +82,17 @@ func (app *application) mount() http.Handler {
 		})
 	})
 
-
-
 	return r
 }
 
-// Run 
+// Run
 func (app *application) run(h http.Handler) error {
-	srv := &http.Server {
-		Addr: app.config.addr,
-		Handler: h,
+	srv := &http.Server{
+		Addr:         app.config.addr,
+		Handler:      h,
 		WriteTimeout: time.Second * 30,
-		ReadTimeout: time.Second * 30,
-		IdleTimeout: time.Minute,
+		ReadTimeout:  time.Second * 30,
+		IdleTimeout:  time.Minute,
 	}
 
 	log.Printf("Server is running at address %s", app.config.addr)
@@ -118,6 +120,10 @@ func (app *application) authMiddleware(next http.Handler) http.Handler {
 		claims := &Claims{}
 
 		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, jwt.ErrSignatureInvalid
+			}
+
 			return []byte(app.config.jwtSecret), nil
 		})
 
