@@ -1,11 +1,13 @@
 -- +goose Up
 -- Ensure every workout is owned by a user before enforcing NOT NULL.
+-- +goose StatementBegin
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM workouts WHERE user_id IS NULL) THEN
         RAISE EXCEPTION 'cannot set workouts.user_id NOT NULL: existing rows have NULL user_id';
     END IF;
 END $$;
+-- +goose StatementEnd
 
 ALTER TABLE workouts
     ALTER COLUMN user_id SET NOT NULL;
