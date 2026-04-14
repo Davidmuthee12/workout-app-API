@@ -10,6 +10,8 @@ import (
 	repo "github.com/Davidmuthee12/kicker/internals/adapters/postgres/sqlc"
 	"github.com/Davidmuthee12/kicker/internals/auth/login"
 	"github.com/Davidmuthee12/kicker/internals/auth/register"
+	"github.com/Davidmuthee12/kicker/internals/programs"
+	"github.com/Davidmuthee12/kicker/internals/services"
 	"github.com/Davidmuthee12/kicker/internals/workouts"
 	"github.com/go-chi/chi/middleware"
 	"github.com/go-chi/chi/v5"
@@ -63,8 +65,16 @@ func (app *application) mount() http.Handler {
 	registerHandler := register.NewHandler(registerService)
 	loginService := login.NewService(app.db, app.config.jwtSecret)
 	loginHandler := login.NewHandler(loginService)
+	programServices := programs.NewService(queries)
+	servicesService := services.NewService(queries)
+	servicesHandler := services.NewHandler(servicesService)
+	programsHandler := programs.NewHandler(programServices)
 	r.Post("/auth/register", registerHandler.Register)
 	r.Post("/auth/login", loginHandler.Login)
+	r.Get("/services", servicesHandler.ListServices)
+	r.Get("/programs", programsHandler.ListPrograms)
+	r.Post("/services", servicesHandler.AddService)
+	r.Post("/programs", programsHandler.AddProgram)
 
 	// PROTECTED ROUTES
 	workoutServices := workouts.NewService(queries)
