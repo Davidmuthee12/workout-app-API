@@ -11,9 +11,15 @@ import (
 )
 
 type Querier interface {
+	AddProgram(ctx context.Context, arg AddProgramParams) (Program, error)
+	AddService(ctx context.Context, arg AddServiceParams) (Service, error)
 	AddWorkout(ctx context.Context, arg AddWorkoutParams) (Workout, error)
 	DeleteWorkout(ctx context.Context, id pgtype.UUID) error
+	GetProgramByID(ctx context.Context, id pgtype.UUID) (Program, error)
+	GetServiceByID(ctx context.Context, id pgtype.UUID) (Service, error)
 	GetWorkoutByID(ctx context.Context, id pgtype.UUID) (Workout, error)
+	ListPrograms(ctx context.Context) ([]Program, error)
+	ListServices(ctx context.Context) ([]Service, error)
 	ListWorkouts(ctx context.Context) ([]Workout, error)
 	UpdateWorkoutByID(ctx context.Context, arg UpdateWorkoutByIDParams) (Workout, error)
 }

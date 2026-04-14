@@ -20,3 +20,26 @@ SET
 	notes = $4
 WHERE id = $1
 RETURNING *;
+
+-- name: ListPrograms :many
+SELECT * FROM programs;
+
+-- name: GetProgramByID :one
+SELECT * FROM programs WHERE id = $1;
+
+-- name: AddProgram :one
+INSERT INTO programs (program_id, title, description)
+VALUES ($1, $2, $3)
+RETURNING *;
+
+-- name: ListServices :many
+SELECT * FROM services;
+
+-- name: GetServiceByID :one
+SELECT * FROM services WHERE id = $1;
+
+-- name: AddService :one
+INSERT INTO services (service_id, title, description)
+VALUES ($1, $2, $3)
+RETURNING *;
+

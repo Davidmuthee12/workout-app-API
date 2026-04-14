@@ -11,6 +11,56 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addProgram = `-- name: AddProgram :one
+INSERT INTO programs (program_id, title, description)
+VALUES ($1, $2, $3)
+RETURNING id, program_id, title, description, created_at
+`
+
+type AddProgramParams struct {
+	ProgramID   pgtype.UUID `json:"program_id"`
+	Title       string      `json:"title"`
+	Description pgtype.Text `json:"description"`
+}
+
+func (q *Queries) AddProgram(ctx context.Context, arg AddProgramParams) (Program, error) {
+	row := q.db.QueryRow(ctx, addProgram, arg.ProgramID, arg.Title, arg.Description)
+	var i Program
+	err := row.Scan(
+		&i.ID,
+		&i.ProgramID,
+		&i.Title,
+		&i.Description,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const addService = `-- name: AddService :one
+INSERT INTO services (service_id, title, description)
+VALUES ($1, $2, $3)
+RETURNING id, service_id, title, description, created_at
+`
+
+type AddServiceParams struct {
+	ServiceID   pgtype.UUID `json:"service_id"`
+	Title       string      `json:"title"`
+	Description pgtype.Text `json:"description"`
+}
+
+func (q *Queries) AddService(ctx context.Context, arg AddServiceParams) (Service, error) {
+	row := q.db.QueryRow(ctx, addService, arg.ServiceID, arg.Title, arg.Description)
+	var i Service
+	err := row.Scan(
+		&i.ID,
+		&i.ServiceID,
+		&i.Title,
+		&i.Description,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const addWorkout = `-- name: AddWorkout :one
 INSERT INTO workouts (user_id, title, date, notes)
 VALUES ($1, $2, $3, $4)
@@ -52,6 +102,40 @@ func (q *Queries) DeleteWorkout(ctx context.Context, id pgtype.UUID) error {
 	return err
 }
 
+const getProgramByID = `-- name: GetProgramByID :one
+SELECT id, program_id, title, description, created_at FROM programs WHERE id = $1
+`
+
+func (q *Queries) GetProgramByID(ctx context.Context, id pgtype.UUID) (Program, error) {
+	row := q.db.QueryRow(ctx, getProgramByID, id)
+	var i Program
+	err := row.Scan(
+		&i.ID,
+		&i.ProgramID,
+		&i.Title,
+		&i.Description,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getServiceByID = `-- name: GetServiceByID :one
+SELECT id, service_id, title, description, created_at FROM services WHERE id = $1
+`
+
+func (q *Queries) GetServiceByID(ctx context.Context, id pgtype.UUID) (Service, error) {
+	row := q.db.QueryRow(ctx, getServiceByID, id)
+	var i Service
+	err := row.Scan(
+		&i.ID,
+		&i.ServiceID,
+		&i.Title,
+		&i.Description,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getWorkoutByID = `-- name: GetWorkoutByID :one
 SELECT id, title, created_at, user_id, date, notes FROM workouts WHERE id = $1
 `
@@ -68,6 +152,66 @@ func (q *Queries) GetWorkoutByID(ctx context.Context, id pgtype.UUID) (Workout, 
 		&i.Notes,
 	)
 	return i, err
+}
+
+const listPrograms = `-- name: ListPrograms :many
+SELECT id, program_id, title, description, created_at FROM programs
+`
+
+func (q *Queries) ListPrograms(ctx context.Context) ([]Program, error) {
+	rows, err := q.db.Query(ctx, listPrograms)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Program
+	for rows.Next() {
+		var i Program
+		if err := rows.Scan(
+			&i.ID,
+			&i.ProgramID,
+			&i.Title,
+			&i.Description,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listServices = `-- name: ListServices :many
+SELECT id, service_id, title, description, created_at FROM services
+`
+
+func (q *Queries) ListServices(ctx context.Context) ([]Service, error) {
+	rows, err := q.db.Query(ctx, listServices)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Service
+	for rows.Next() {
+		var i Service
+		if err := rows.Scan(
+			&i.ID,
+			&i.ServiceID,
+			&i.Title,
+			&i.Description,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listWorkouts = `-- name: ListWorkouts :many
